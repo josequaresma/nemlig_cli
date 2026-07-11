@@ -572,6 +572,31 @@ def add_to_basket(auth: AuthTokens, product_id: str, quantity: int = 1) -> dict:
     return resp.json()
 
 
+def remove_from_basket(auth: AuthTokens, product_id: str) -> dict:
+    """
+    Remove a product line from the basket.
+
+    Nemlig has no dedicated delete endpoint: the web app calls AddToBasket
+    with quantity=0 and AffectPartialQuantity=true (see nemlig_api.md,
+    "Remove from Basket"). Returns the full updated basket.
+    """
+    headers = get_common_headers()
+    headers["Authorization"] = f"Bearer {auth.bearer_token}"
+    headers["X-XSRF-TOKEN"] = auth.xsrf_token
+    headers["Referer"] = f"{BASE_URL}/"
+
+    payload = {
+        "ProductId": product_id,
+        "quantity": 0,
+        "AffectPartialQuantity": True,
+        "disableQuantityValidation": False,
+    }
+
+    resp = auth.session.post(f"{BASE_URL}/webapi/basket/AddToBasket", headers=headers, json=payload)
+    resp.raise_for_status()
+    return resp.json()
+
+
 def get_order_history(auth: AuthTokens, skip: int = 0, take: int = 10) -> dict:
     """Get paginated list of past orders."""
     headers = get_common_headers()

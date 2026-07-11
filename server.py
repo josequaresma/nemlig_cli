@@ -214,6 +214,19 @@ def add_to_basket(product_id: str, quantity: int = 1) -> str:
 
 @mcp.tool
 @_safe
+def delete_from_cart(product_id: str) -> str:
+    """Remove a product line from the nemlig.com basket by product ID.
+    MUTATES the family's live basket — only call when the user has asked to
+    remove this specific product. Returns the updated basket."""
+    result = _call(nemlig_cli.remove_from_basket, product_id)
+    lines = result.get("Lines", [])
+    if any(ln.get("Id") == product_id for ln in lines):
+        raise ToolError(f"Product {product_id} is still in the basket after removal attempt.")
+    return f"Removed {product_id}.\n{_fmt_basket(result)}"
+
+
+@mcp.tool
+@_safe
 def order_history(limit: int = 10, order_id: int | None = None) -> str:
     """List recent nemlig.com orders (order ID, date, total, status, delivery
     window). Pass order_id to get that order's full line items instead."""

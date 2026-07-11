@@ -446,6 +446,43 @@ Returns the full basket with all items:
 
 ---
 
+### Remove from Basket
+
+There is no dedicated delete endpoint. The web app removes a basket line by
+calling **the same `AddToBasket` endpoint** with `quantity: 0` and
+`AffectPartialQuantity: true` (captured from live traffic, 2026-07-11).
+
+#### Request
+
+```http
+POST https://www.nemlig.com/webapi/basket/AddToBasket
+Content-Type: application/json
+```
+
+Headers: same as Add to Basket.
+
+#### Request Body
+
+```json
+{
+  "ProductId": "701025",
+  "quantity": 0,
+  "AffectPartialQuantity": true,
+  "disableQuantityValidation": false
+}
+```
+
+With `AffectPartialQuantity: true` the web UI's plus/minus controls send the
+line's new absolute quantity; `0` removes the line. (Only the `quantity: 0`
+removal case has been verified.)
+
+#### Response (Success - 200)
+
+Returns the full updated basket, same shape as Add to Basket / Get Basket,
+with the removed product no longer present in `Lines`.
+
+---
+
 ### Get Basket
 
 Retrieves the current shopping basket with all items and addresses.
