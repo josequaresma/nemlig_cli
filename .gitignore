@@ -24,3 +24,4 @@ Thumbs.db
 
 # Credentials
 .env
+run_server.sh
