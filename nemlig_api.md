@@ -483,6 +483,61 @@ with the removed product no longer present in `Lines`.
 
 ---
 
+### Shopping Lists
+
+Saved shopping lists ("favoritter"/"indkøbslister"). Captured from live
+traffic, 2026-07-11.
+
+#### List the user's shopping lists
+
+```http
+GET https://www.nemlig.com/webapi/ShoppingList/GetShoppingLists?skip=0&take=6
+```
+
+Headers: standard authenticated headers (Bearer + XSRF).
+
+Response (200):
+
+```json
+{
+  "ShoppingListOverViewViewModels": [
+    {
+      "Id": 123456,
+      "Name": "Pastaret 🍝",
+      "Url": "/shoppinglist/pastaret-123456",
+      "ContainsDeactivatedData": false,
+      "ProductsCount": 6,
+      "TotalAmount": 187.50,
+      "ProductCountInList": 6
+    }
+  ],
+  "NumberOfPages": 2
+}
+```
+
+#### Add a shopping list to the basket
+
+```http
+POST https://www.nemlig.com/webapi/basket/addShoppingListToBasket
+Content-Type: application/json
+```
+
+Request body:
+
+```json
+{
+  "ListId": 123456,
+  "ConfirmMissingProducts": false
+}
+```
+
+Response (200): the full updated basket (same shape as Get Basket), with the
+list's products appended to `Lines`. `ConfirmMissingProducts` presumably
+acknowledges lists containing deactivated/unavailable products
+(`ContainsDeactivatedData`); only `false` has been observed.
+
+---
+
 ### Get Basket
 
 Retrieves the current shopping basket with all items and addresses.

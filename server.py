@@ -227,6 +227,47 @@ def delete_from_cart(product_id: str) -> str:
 
 @mcp.tool
 @_safe
+def list_shopping_lists() -> str:
+    """List the family's saved nemlig.com shopping lists (favoritter/
+    indkøbslister): list ID, name, number of products, total price."""
+    data = _call(nemlig_cli.get_shopping_lists, take=50)
+    lists = data.get("ShoppingListOverViewViewModels", [])
+    if not lists:
+        return "No saved shopping lists."
+    out = [f"Shopping lists ({len(lists)}):"]
+    for sl in lists:
+        deactivated = " [contains deactivated products]" if sl.get("ContainsDeactivatedData") else ""
+        out.append(
+            f"[{sl.get('Id')}] {sl.get('Name')} — {sl.get('ProductsCount', '?')} products, "
+            f"{sl.get('TotalAmount', 0):.2f} kr{deactivated}"
+        )
+    return "\n".join(out)
+
+
+@mcp.tool
+@_safe
+def add_shopping_list(list_name_or_id: str) -> str:
+    """Add all products from a saved shopping list to the nemlig.com basket,
+    by list name (case-insensitive) or list ID. MUTATES the family's live
+    basket — only call when the user has asked to add this specific list.
+    Returns the updated basket."""
+    data = _call(nemlig_cli.get_shopping_lists, take=50)
+    lists = data.get("ShoppingListOverViewViewModels", [])
+    wanted = list_name_or_id.strip()
+    match = next(
+        (sl for sl in lists
+         if str(sl.get("Id")) == wanted or (sl.get("Name") or "").strip().lower() == wanted.lower()),
+        None,
+    )
+    if match is None:
+        names = ", ".join(f"'{sl.get('Name')}'" for sl in lists)
+        raise ToolError(f"No shopping list matching '{wanted}'. Available: {names}")
+    result = _call(nemlig_cli.add_shopping_list_to_basket, match["Id"])
+    return f"Added list '{match.get('Name')}' [{match['Id']}] to basket.\n{_fmt_basket(result)}"
+
+
+@mcp.tool
+@_safe
 def order_history(limit: int = 10, order_id: int | None = None) -> str:
     """List recent nemlig.com orders (order ID, date, total, status, delivery
     window). Pass order_id to get that order's full line items instead."""

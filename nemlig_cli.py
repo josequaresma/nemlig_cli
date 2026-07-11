@@ -597,6 +597,45 @@ def remove_from_basket(auth: AuthTokens, product_id: str) -> dict:
     return resp.json()
 
 
+def get_shopping_lists(auth: AuthTokens, skip: int = 0, take: int = 20) -> dict:
+    """
+    Get the user's saved shopping lists (favoritter/indkøbslister).
+
+    Returns dict with ShoppingListOverViewViewModels (Id, Name, Url,
+    ProductsCount, TotalAmount) and NumberOfPages. See nemlig_api.md,
+    "Shopping Lists".
+    """
+    headers = get_common_headers()
+    headers["Authorization"] = f"Bearer {auth.bearer_token}"
+    headers["X-XSRF-TOKEN"] = auth.xsrf_token
+
+    params = {"skip": skip, "take": take}
+    resp = auth.session.get(
+        f"{BASE_URL}/webapi/ShoppingList/GetShoppingLists", headers=headers, params=params
+    )
+    resp.raise_for_status()
+    return resp.json()
+
+
+def add_shopping_list_to_basket(auth: AuthTokens, list_id: int, confirm_missing: bool = False) -> dict:
+    """
+    Add all products from a saved shopping list to the basket.
+
+    Returns the full updated basket. See nemlig_api.md, "Shopping Lists".
+    """
+    headers = get_common_headers()
+    headers["Authorization"] = f"Bearer {auth.bearer_token}"
+    headers["X-XSRF-TOKEN"] = auth.xsrf_token
+    headers["Referer"] = f"{BASE_URL}/"
+
+    payload = {"ListId": list_id, "ConfirmMissingProducts": confirm_missing}
+    resp = auth.session.post(
+        f"{BASE_URL}/webapi/basket/addShoppingListToBasket", headers=headers, json=payload
+    )
+    resp.raise_for_status()
+    return resp.json()
+
+
 def get_order_history(auth: AuthTokens, skip: int = 0, take: int = 10) -> dict:
     """Get paginated list of past orders."""
     headers = get_common_headers()
