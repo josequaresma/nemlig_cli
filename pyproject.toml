@@ -13,6 +13,7 @@ dependencies = [
     "opencv-python>=4.8.0",
     "Pillow>=10.0.0",
     "argcomplete>=3.0.0",
+    "fastmcp>=3.4.4",
 ]
 
 # Note: For Raspberry Pi AI Camera support, install picamera2 manually:
