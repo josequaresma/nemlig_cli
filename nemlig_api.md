@@ -538,6 +538,95 @@ acknowledges lists containing deactivated/unavailable products
 
 ---
 
+### Delivery Time Slots
+
+Captured from live traffic, 2026-07-11.
+
+#### List available delivery days and slots
+
+```http
+GET https://www.nemlig.com/webapi/v2/Delivery/GetDeliveryDays?days=8&showForSubscriptions=false
+```
+
+Optional `startDate` parameter pages forward (`NextRangeStart` in the
+response gives the next value). Headers: standard authenticated headers.
+
+Response (200), abridged:
+
+```json
+{
+  "DayRangeHours": [
+    {
+      "Date": "2026-07-12T00:00:00",
+      "IsCheapDay": true,
+      "IsAttendedAvailable": true,
+      "DayHours": [
+        {
+          "Id": 2328027,
+          "StartHour": 6,
+          "EndHour": 8,
+          "NumberOfHours": 2,
+          "DeliveryPrice": 22.0,
+          "OriginalDeliveryPrice": 22.0,
+          "Deadline": "2026-07-11T15:00:00",
+          "Date": "2026-07-12T00:00:00",
+          "IsSelected": false,
+          "Availability": 1
+        }
+      ]
+    }
+  ],
+```
+
+`Availability` is inverted from what the name suggests: **0 = bookable,
+1 = not bookable** (sold out or `Deadline` passed). Verified against a
+selected/reserved slot (`Availability: 0`, `IsSelected: true`) and
+same-day slots with passed deadlines (`Availability: 1`).
+
+`Type`: 0 for normal 2–4 h windows; 1 for wide 5–6 h windows at a flat
+price (observed 29 kr) — likely the attended/unattended distinction, but
+the mapping is unconfirmed.
+
+```json
+{
+  "SelectedTimeSlotId": 2331025,
+  "SelectedDeliveryTime": "2026-07-15T06:00:00",
+  "IsTimeSlotReserved": true,
+  "NextRangeStart": "2026-07-20T00:00:00"
+}
+```
+
+#### Reserve a delivery time slot
+
+```http
+POST https://www.nemlig.com/webapi/Delivery/TryUpdateDeliveryTime?timeslotId=2331025
+```
+
+Empty request body; the slot `Id` (from `DayHours`) goes in the query string.
+
+Response (200):
+
+```json
+{
+  "PriceChangeDiff": 0.00,
+  "MinutesReserved": 20,
+  "IsReserved": true,
+  "ProductLineDiffs": [],
+  "IsPriceDiffChangePositive": false,
+  "ShowDeadlineAlert": false,
+  "MinutesTillDeadline": 3954,
+  "TimeslotUtc": "2026071504-300-900",
+  "DeliveryZoneId": 1,
+  "MealBoxesValidationData": null
+}
+```
+
+The reservation is held for `MinutesReserved` (~20) minutes and becomes
+final at checkout. `ProductLineDiffs` lists basket items that become
+unavailable in the new slot.
+
+---
+
 ### Get Basket
 
 Retrieves the current shopping basket with all items and addresses.

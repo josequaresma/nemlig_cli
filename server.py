@@ -268,6 +268,61 @@ def add_shopping_list(list_name_or_id: str) -> str:
 
 @mcp.tool
 @_safe
+def list_delivery_slots(days: int = 8) -> str:
+    """List available nemlig.com delivery slots for the family's address over
+    the coming days: slot ID, time window, delivery price. Marks the currently
+    selected slot. Read-only."""
+    data = _call(nemlig_cli.get_delivery_days, days=days)
+    out = []
+    selected = data.get("SelectedTimeSlotId")
+    for day in data.get("DayRangeHours", []):
+        date = (day.get("Date") or "")[:10]
+        slots = []
+        for s in day.get("DayHours", []):
+            if s.get("Availability"):  # 0 = bookable; nonzero = sold out / deadline passed
+                continue
+            price = s.get("DeliveryPrice", 0)
+            mark = " ←selected" if s.get("Id") == selected else ""
+            slots.append(f"[{s.get('Id')}] {s.get('StartHour'):02d}-{s.get('EndHour'):02d} {price:.0f} kr{mark}")
+        cheap = " (cheap day)" if day.get("IsCheapDay") else ""
+        out.append(f"{date}{cheap}: " + ("; ".join(slots) if slots else "no slots"))
+    if data.get("SelectedDeliveryTime"):
+        out.append(
+            f"Currently selected: slot {selected} at {data['SelectedDeliveryTime']}"
+            f" (reserved: {data.get('IsTimeSlotReserved')})"
+        )
+    return "\n".join(out) if out else "No delivery days returned."
+
+
+@mcp.tool
+@_safe
+def set_delivery_time(timeslot_id: int) -> str:
+    """Reserve a nemlig.com delivery time slot (ID from list_delivery_slots)
+    for the current basket. MONEY-RELEVANT: this changes the planned delivery
+    and its price — ALWAYS confirm the specific slot (date, window, price)
+    with the user before calling. The reservation holds for ~20 minutes and
+    becomes final at checkout."""
+    result = _call(nemlig_cli.update_delivery_time, timeslot_id)
+    if not result.get("IsReserved"):
+        raise ToolError(f"Slot {timeslot_id} was NOT reserved. Response flags: {result}")
+    diff = result.get("PriceChangeDiff", 0)
+    diff_str = f"; basket price change {diff:+.2f} kr" if diff else ""
+    unavailable = result.get("ProductLineDiffs") or []
+    unavail_str = (
+        "\nWARNING: some basket items are unavailable in this slot: "
+        + ", ".join(str(d) for d in unavailable)
+        if unavailable
+        else ""
+    )
+    return (
+        f"Reserved slot {timeslot_id} (timeslot {result.get('TimeslotUtc')}) "
+        f"for {result.get('MinutesReserved')} minutes{diff_str}. "
+        f"Reservation becomes final at checkout.{unavail_str}"
+    )
+
+
+@mcp.tool
+@_safe
 def order_history(limit: int = 10, order_id: int | None = None) -> str:
     """List recent nemlig.com orders (order ID, date, total, status, delivery
     window). Pass order_id to get that order's full line items instead."""

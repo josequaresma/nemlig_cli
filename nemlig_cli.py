@@ -636,6 +636,51 @@ def add_shopping_list_to_basket(auth: AuthTokens, list_id: int, confirm_missing:
     return resp.json()
 
 
+def get_delivery_days(auth: AuthTokens, days: int = 8, start_date: str | None = None) -> dict:
+    """
+    Get available delivery days and time slots for the user's address.
+
+    Returns dict with DayRangeHours (per-day DayHours slot lists: Id,
+    StartHour, EndHour, DeliveryPrice, Deadline, Availability),
+    SelectedTimeSlotId, SelectedDeliveryTime, IsTimeSlotReserved and
+    NextRangeStart. See nemlig_api.md, "Delivery Time Slots".
+    """
+    headers = get_common_headers()
+    headers["Authorization"] = f"Bearer {auth.bearer_token}"
+    headers["X-XSRF-TOKEN"] = auth.xsrf_token
+
+    params = {"days": days, "showForSubscriptions": "false"}
+    if start_date:
+        params["startDate"] = start_date
+    resp = auth.session.get(
+        f"{BASE_URL}/webapi/v2/Delivery/GetDeliveryDays", headers=headers, params=params
+    )
+    resp.raise_for_status()
+    return resp.json()
+
+
+def update_delivery_time(auth: AuthTokens, timeslot_id: int) -> dict:
+    """
+    Reserve a delivery time slot for the current basket.
+
+    The reservation is held for ~20 minutes (MinutesReserved in the
+    response) and becomes final at checkout. Empty POST body; the slot id
+    goes in the query string. See nemlig_api.md, "Delivery Time Slots".
+    """
+    headers = get_common_headers()
+    headers["Authorization"] = f"Bearer {auth.bearer_token}"
+    headers["X-XSRF-TOKEN"] = auth.xsrf_token
+    headers["Referer"] = f"{BASE_URL}/"
+
+    resp = auth.session.post(
+        f"{BASE_URL}/webapi/Delivery/TryUpdateDeliveryTime",
+        headers=headers,
+        params={"timeslotId": timeslot_id},
+    )
+    resp.raise_for_status()
+    return resp.json()
+
+
 def get_order_history(auth: AuthTokens, skip: int = 0, take: int = 10) -> dict:
     """Get paginated list of past orders."""
     headers = get_common_headers()
