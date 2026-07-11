@@ -583,9 +583,9 @@ Response (200), abridged:
 selected/reserved slot (`Availability: 0`, `IsSelected: true`) and
 same-day slots with passed deadlines (`Availability: 1`).
 
-`Type`: 0 for normal 2–4 h windows; 1 for wide 5–6 h windows at a flat
-price (observed 29 kr) — likely the attended/unattended distinction, but
-the mapping is unconfirmed.
+`Type`: **0 = personal delivery** (attended — someone must be home),
+**1 = "levering uden opsyn"** (unattended, marketed as "flexible
+delivery") — wide 5–6 h windows at a flat price (observed 29 kr).
 
 ```json
 {

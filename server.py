@@ -282,8 +282,9 @@ def list_delivery_slots(days: int = 8) -> str:
             if s.get("Availability"):  # 0 = bookable; nonzero = sold out / deadline passed
                 continue
             price = s.get("DeliveryPrice", 0)
+            flex = " flex" if s.get("Type") == 1 else ""  # unattended "uden opsyn" delivery
             mark = " ←selected" if s.get("Id") == selected else ""
-            slots.append(f"[{s.get('Id')}] {s.get('StartHour'):02d}-{s.get('EndHour'):02d} {price:.0f} kr{mark}")
+            slots.append(f"[{s.get('Id')}] {s.get('StartHour'):02d}-{s.get('EndHour'):02d} {price:.0f} kr{flex}{mark}")
         cheap = " (cheap day)" if day.get("IsCheapDay") else ""
         out.append(f"{date}{cheap}: " + ("; ".join(slots) if slots else "no slots"))
     if data.get("SelectedDeliveryTime"):
