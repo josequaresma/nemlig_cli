@@ -5,14 +5,31 @@ description = "CLI for nemlig.com grocery shopping"
 requires-python = ">=3.11"
 dependencies = [
     "requests>=2.31.0",
+    "argcomplete>=3.0.0",
+]
+
+# The features below are already guarded with try/except ImportError in
+# nemlig_cli.py, so the core CLI (search, basket, orders) runs without them.
+# Install what you need, or everything with: pip install nemlig-cli[all]
+[project.optional-dependencies]
+# AI meal planning: `nemlig plan`
+ai = [
     "anthropic>=0.40.0",
+]
+# Google Forms/Sheets recipe import: `nemlig import`
+sheets = [
     "google-api-python-client>=2.100.0",
     "google-auth-oauthlib>=1.1.0",
+]
+# Barcode and produce scanning: `nemlig fridge scan`
+scanner = [
     "openfoodfacts>=3.0.0",
     "pyzbar>=0.1.9",
     "opencv-python>=4.8.0",
     "Pillow>=10.0.0",
-    "argcomplete>=3.0.0",
+]
+all = [
+    "nemlig-cli[ai,sheets,scanner]",
 ]
 
 # Note: For Raspberry Pi AI Camera support, install picamera2 manually:
