@@ -20,6 +20,22 @@ export NEMLIG_USER="your@email.com"
 export NEMLIG_PASS="yourpassword"
 ```
 
+### Optional features
+
+Search, basket and order history need nothing beyond `requests`. The remaining
+features pull in heavier dependencies and are installed as extras:
+
+| Extra | Enables | Commands |
+|-------|---------|----------|
+| `ai` | AI meal planning | `plan` |
+| `sheets` | Google Forms/Sheets recipe import | `import` |
+| `scanner` | Barcode and produce scanning | `scan`, `fridge` |
+| `all` | Everything above | |
+
+```bash
+uv sync --extra all          # or: --extra ai --extra scanner
+```
+
 ## Usage
 
 All commands are available via the justfile:
