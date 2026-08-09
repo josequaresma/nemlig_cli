@@ -23,7 +23,13 @@ from nemlig_cli import AuthTokens, ProductNotFoundError
 
 
 class _SilentSpinner:
-    """Replaces nemlig_cli.Spinner: stdout is the MCP protocol channel."""
+    """Replaces nemlig_cli.Spinner: stdout is the MCP protocol channel.
+
+    Upstream's Spinner now renders to stderr and only when stderr is a tty, so
+    under stdio transport it would stay silent on its own. Kept as belt and
+    braces: nothing animated can ever reach the JSON-RPC stream, whatever a
+    future upstream merge changes about the spinner.
+    """
 
     def __init__(self, message: str = "Loading"):
         pass

@@ -103,34 +103,61 @@ class NemligCompleter:
 
 
 class Spinner:
-    """Animated spinner for long-running operations."""
+    """Animated spinner for long-running operations.
 
-    def __init__(self, message: str = "Loading"):
+    Renders to stderr, and only when stderr is an interactive terminal. Writing
+    to stderr keeps stdout clean for redirection, so progress is still visible
+    during `nemlig search cocio > results.txt`. Skipping the animation when
+    stderr is not a tty keeps escape sequences out of log files, CI output, and
+    programmatic consumers that import this module as a library.
+
+    When inactive no thread is started at all, so nothing can be left spinning
+    if stop() is missed.
+    """
+
+    def __init__(self, message: str = "Loading", stream=None):
         self.message = message
+        self.stream = stream if stream is not None else sys.stderr
         self.running = False
         self.thread = None
         self.frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+
+    @property
+    def enabled(self) -> bool:
+        """Whether to animate. False when output is piped or captured."""
+        try:
+            return self.stream.isatty()
+        except (AttributeError, ValueError):
+            # No isatty (a plain buffer), or the stream is already closed.
+            return False
 
     def _spin(self):
         for frame in itertools.cycle(self.frames):
             if not self.running:
                 break
-            print(f"\r  {frame} {self.message}...", end="", flush=True)
+            print(f"\r  {frame} {self.message}...", end="", flush=True, file=self.stream)
             time.sleep(0.08)
 
     def start(self):
+        if not self.enabled:
+            return
         self.running = True
-        self.thread = threading.Thread(target=self._spin)
+        # Daemon, so a spinner that is never stopped cannot keep the process
+        # alive on its own.
+        self.thread = threading.Thread(target=self._spin, daemon=True)
         self.thread.start()
 
     def stop(self, final_message: str = None):
         self.running = False
         if self.thread:
             self.thread.join()
+            self.thread = None
+        if not self.enabled:
+            return
         # Clear the line
-        print(f"\r{' ' * (len(self.message) + 10)}\r", end="")
+        print(f"\r{' ' * (len(self.message) + 10)}\r", end="", file=self.stream)
         if final_message:
-            print(f"  ✓ {final_message}")
+            print(f"  ✓ {final_message}", file=self.stream)
 
     def __enter__(self):
         self.start()
@@ -410,53 +437,57 @@ def login(username: str, password: str) -> AuthTokens:
     spinner = Spinner("Connecting to nemlig.com")
     spinner.start()
 
-    # Step 1: Get XSRF token
-    resp = session.get(f"{BASE_URL}/webapi/AntiForgery", headers=headers)
-    resp.raise_for_status()
-    xsrf_data = resp.json()
-    xsrf_token = xsrf_data["Value"]
+    try:
+        # Step 1: Get XSRF token
+        resp = session.get(f"{BASE_URL}/webapi/AntiForgery", headers=headers)
+        resp.raise_for_status()
+        xsrf_data = resp.json()
+        xsrf_token = xsrf_data["Value"]
 
-    # Step 2: Get Bearer token
-    headers["X-Correlation-Id"] = str(uuid.uuid4())
-    resp = session.get(f"{BASE_URL}/webapi/Token", headers=headers)
-    resp.raise_for_status()
-    token_data = resp.json()
-    bearer_token = token_data["access_token"]
+        # Step 2: Get Bearer token
+        headers["X-Correlation-Id"] = str(uuid.uuid4())
+        resp = session.get(f"{BASE_URL}/webapi/Token", headers=headers)
+        resp.raise_for_status()
+        token_data = resp.json()
+        bearer_token = token_data["access_token"]
 
-    # Step 3: Login
-    headers["X-Correlation-Id"] = str(uuid.uuid4())
-    headers["X-XSRF-TOKEN"] = xsrf_token
-    headers["Authorization"] = f"Bearer {bearer_token}"
-    headers["Referer"] = f"{BASE_URL}/login?returnUrl=%2F"
+        # Step 3: Login
+        headers["X-Correlation-Id"] = str(uuid.uuid4())
+        headers["X-XSRF-TOKEN"] = xsrf_token
+        headers["Authorization"] = f"Bearer {bearer_token}"
+        headers["Referer"] = f"{BASE_URL}/login?returnUrl=%2F"
 
-    login_payload = {
-        "Username": username,
-        "Password": password,
-        "CheckForExistingProducts": True,
-        "DoMerge": True,
-        "AppInstalled": False,
-        "SaveExistingBasket": False,
-    }
+        login_payload = {
+            "Username": username,
+            "Password": password,
+            "CheckForExistingProducts": True,
+            "DoMerge": True,
+            "AppInstalled": False,
+            "SaveExistingBasket": False,
+        }
 
-    resp = session.post(f"{BASE_URL}/webapi/login", headers=headers, json=login_payload)
-    resp.raise_for_status()
-    login_result = resp.json()
+        resp = session.post(f"{BASE_URL}/webapi/login", headers=headers, json=login_payload)
+        resp.raise_for_status()
+        login_result = resp.json()
 
-    if "RedirectUrl" not in login_result:
-        raise Exception(f"Login failed: {login_result}")
+        if "RedirectUrl" not in login_result:
+            raise Exception(f"Login failed: {login_result}")
 
-    # Get fresh tokens after login
-    headers["X-Correlation-Id"] = str(uuid.uuid4())
-    resp = session.get(f"{BASE_URL}/webapi/Token", headers=headers)
-    resp.raise_for_status()
-    token_data = resp.json()
-    bearer_token = token_data["access_token"]
+        # Get fresh tokens after login
+        headers["X-Correlation-Id"] = str(uuid.uuid4())
+        resp = session.get(f"{BASE_URL}/webapi/Token", headers=headers)
+        resp.raise_for_status()
+        token_data = resp.json()
+        bearer_token = token_data["access_token"]
 
-    # Get fresh XSRF token
-    resp = session.get(f"{BASE_URL}/webapi/AntiForgery", headers=headers)
-    resp.raise_for_status()
-    xsrf_data = resp.json()
-    xsrf_token = xsrf_data["Value"]
+        # Get fresh XSRF token
+        resp = session.get(f"{BASE_URL}/webapi/AntiForgery", headers=headers)
+        resp.raise_for_status()
+        xsrf_data = resp.json()
+        xsrf_token = xsrf_data["Value"]
+    except BaseException:
+        spinner.stop()
+        raise
 
     spinner.stop("Connected!")
 
